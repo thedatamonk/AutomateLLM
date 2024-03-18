@@ -1,6 +1,7 @@
 from typing import List, Dict
 from openai import OpenAI
 import os
+import re
 
 os.environ['OPENAI_API_KEY'] = "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"
 
@@ -9,7 +10,7 @@ class AutomateRAG:
         self.main_llm = main_llm
         self.main_llm_client = OpenAI()
         self.embed_llm = embed_llm
-        self.valid_integrations = ['sendgrid', 'airtable', 'gmail']
+        self.valid_integrations = ['sendgrid', 'airtable', 'gmail', 'linear', 'slack', 'supabase', 'github', 'openai'] # TODO: Maintain a list of integrations along with their descriptions
 
 
     def automate(self, job_description: str):
@@ -35,11 +36,17 @@ class AutomateRAG:
             7. Code correction
         """
 
+        print (f"Job description\n{'--'*50}\n{job_description}")
         job_trigger, tasks = self.break_job_into_tasks(job_description=job_description)
 
-        integrations = self.identify_integrations(job_trigger=job_trigger, tasks=tasks)
+        print (f"Job Trigger\n{'--'*50}\n{job_trigger}")
+        print (f"Tasks\n{'--'*50}\n{tasks}")
+        
+        integrations, integrations_output = self.identify_integrations(job_trigger=job_trigger, tasks=tasks)
 
-        print (integrations)
+        integrations = list(set(integrations))
+        print (f"Here is the list of integrations:\n{integrations}")
+        print (f"Here is the LLM output for integrations:\n{integrations_output}")
 
     def break_job_into_tasks(self, job_description: str) -> List[str]:
         """
@@ -155,7 +162,7 @@ class AutomateRAG:
         {tasks}
 
         **List of predefined API/integrations**
-        [sendgrid, supabase, google_calendar, twilio, airtable, slack, openai, github]
+        {self.valid_integrations}
 
         **Output format**
 
@@ -170,17 +177,24 @@ class AutomateRAG:
 
         """
 
-        print (INTEGRATION_PROMPT_TEMPLATE)
-
-
         integrations_output = self.__invoke_llm_api(llm_name=self.main_llm, query=INTEGRATION_PROMPT_TEMPLATE)
 
         integrations = self.__parse_integrations(integrations_output)
 
-        return integrations
+        return integrations, integrations_output
     
-    def __parse_integrations(integration_str):
-        pass
+    def __parse_integrations(self, integration_str):
+        # Regular expression to match any non-whitespace characters before a colon
+        # \S+ matches one or more non-whitespace characters
+        # (?=:) is a positive lookahead for a colon, ensuring we match words that are immediately followed by a colon
+        pattern = re.compile(r'\S+(?=:)')
+    
+        # Find all matches of the pattern in the text
+        matches = pattern.findall(integration_str)
+        
+        # Return the list of words found before colons
+        return matches
+
 
     def fetch_examples(self, integrations: List[str]):
         """
