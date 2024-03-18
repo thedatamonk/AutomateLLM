@@ -13,6 +13,7 @@ class AutomateRAG:
         self.embed_llm = embed_llm
         self.valid_integrations = ['sendgrid', 'airtable', 'gmail', 'linear', 'slack', 'supabase', 'github', 'openai', 'caldotcom'] # TODO: Maintain a list of integrations along with their descriptions
 
+        # TODO: Use GPT4 to generate summaries of all code examples.
 
     def automate(self, job_description: str):
         """
@@ -43,14 +44,11 @@ class AutomateRAG:
 
         print (f"Tasks and Trigger:\n{'--'*50}\n{self.tasks_and_trigger}\n")
 
-        # integrations, integrations_output = self.identify_integrations(job_trigger=job_trigger, tasks=tasks)
+        # TODO: Create a unique set of integrations
 
-        # integrations = list(set(integrations))
-        # print (f"Here is the list of integrations:\n{integrations}")
-        # print (f"Here is the LLM output for integrations:\n{integrations_output}")
+        # TODO: Fetch relevant examples for each integration and the task that needs to be achieved using that integration
 
-        # ctx = job_trigger + tasks + integrations_output + f"{integrations}"
-        # examples = self.fetch_examples(ctx)
+        self.examples = self.fetch_examples(self.tasks_and_trigger)
 
     def break_job_into_tasks(self, job_description: str) -> List[str]:
         """
@@ -75,28 +73,34 @@ class AutomateRAG:
                 "type": <<trigger_type>>, // valid values are 'webhook', 'event', 'schedule'
                 "explanation": <<One line explanation for why this trigger type is chosen>>,
                 "params": <<Relevant trigger params>> // For example, for a 'schedule' trigger, it can be the actual schedule like 'Every Friday at 4 PM'.
+                "integrations: <<List of third party APIs required to implement the job trigger>> // NOTE: The third party APIs have to be selected from a predefined list of APIs. Also, in case no API is required or no valid option is found in the predefined list, keep the list empty.
             },
 
             "tasks": [
                 {   
-                    "task_sequence_id": 1
-                    "task_desc": <<Exactly one line concise and accurate description of the task>>
+                    "task_sequence_id": 1,
+                    "task_desc": <<Exactly one line concise and accurate description of the task>>,
+                    "integrations: <<List of third party APIs required to implement the task>> // NOTE: The third party APIs have to be selected from a predefined list of APIs. Also, in case no API is required or no valid option is found in the predefined list, keep the list empty.
+
                 },
                 {
-                    "task_sequence_id": 2
-                    "task_desc": <<Exactly one line concise and accurate description of the task>>   
+                    "task_sequence_id": 2,
+                    "task_desc": <<Exactly one line concise and accurate description of the task>>,
+                    "integrations: <<List of third party APIs required to implement the task>> // NOTE: The third party APIs have to be selected from a predefined list of APIs. Also, in case no API is required or no valid option is found in the predefined list, keep the list empty.
+
                 },
                 .
                 .
                 .
                 {
-                    "task_sequence_id": N
-                    "task_desc": <<Exactly one line concise and accurate description of the task>>   
+                    "task_sequence_id": N,
+                    "task_desc": <<Exactly one line concise and accurate description of the task>>,
+                    "integrations: <<List of third party APIs required to implement the task>> // NOTE: The third party APIs have to be selected from a predefined list of APIs. Also, in case no API is required or no valid option is found in the predefined list, keep the list empty.
+
                 }
             ]
         }
 
-        
         **Examples**
 
         Example 1:
@@ -108,13 +112,15 @@ class AutomateRAG:
             "job_trigger": {
                 "type": "webhook",
                 "explanation": "Trigger type is 'webhook' because job will listen to 'New subscription' events from Stripe API",
-                "params": "New subscription is added to Stripe database"
+                "params": "New subscription is added to Stripe database",
+                "integrations": ["stripe"]
             },
 
             "tasks": [
                 {   
                     "task_sequence_id": 1,
-                    "task_desc": "Add a new record containing the new subscription details in Airtable."
+                    "task_desc": "Add a new record containing the new subscription details in Airtable.",
+                    "integrations": ["airtable"]
                 }
             ]
         }        
@@ -128,26 +134,32 @@ class AutomateRAG:
             "job_trigger": {
                 "type": "schedule",
                 "explanation": "Trigger type is 'schedule' because job will trigger every Friday at 4 PM.",
-                "params": "Every Friday at 4 PM."
+                "params": "Every Friday at 4 PM.",
+                "integrations": []
             },
 
             "tasks": [
                 {   
                     "task_sequence_id": 1,
-                    "task_desc": "Send a weekly summary email to users who have opted-in to receive weekly summaries."
+                    "task_desc": "Send a weekly summary email to users who have opted-in to receive weekly summaries.",
+                    "integrations": ["sendgrid"]
                 },
                 {
                     "task_sequence_id": 2,
-                    "task_desc": "Send a slack message to relevant channel informing that a weekly summary has been sent to the relevant users."
+                    "task_desc": "Send a slack message to relevant channel informing that a weekly summary has been sent to the relevant users.",
+                    "integrations": ["slack"]
                 }
             ]
         }
 
-        **Job Description**
         """
         
-        prompt = TASKS_BREAKDOWN_PROMPT + f"\n{job_description}" + "\n\nOutput:"
+        prompt = TASKS_BREAKDOWN_PROMPT + f"\n**Job Description**\n{job_description}"
         
+        prompt += "\n\n**Predefined list of 3rd party APIs/integrations**\n" + f"{self.valid_integrations}"
+        
+        prompt += "\n\nOutput:\n"
+
         output = self.__invoke_llm_api(llm_name=self.main_llm, query=prompt)
 
         tasks_and_trigger = self.__parse_tasks_and_trigger(input_text=output)
@@ -156,9 +168,17 @@ class AutomateRAG:
 
 
     def __parse_tasks_and_trigger(self, input_text):
-        json_data = json.loads(input_text)
+
+        try:
+            json_data = json.loads(input_text)
+            return json_data
+        except json.JSONDecodeError as e:
+            print (f"LLM output is not a valid JSON.\n\nThe output:\n\n{input_text}")
+            print (f"\n\nTrying out some strategies to convert the output into a valid JSON....")
+            cleaned_input_text = input_text.lstrip("```json").rstrip("```")
+            json_data = json.loads(cleaned_input_text)
+            return json_data
         
-        return json_data
 
     def identify_integrations(self, job_trigger: Dict, tasks: str) -> List[str]:
         """
@@ -226,7 +246,15 @@ class AutomateRAG:
         """
         This is where we will do retrieval from qdrant vector DB
         We will fetch all examples that are relevant to the job trigger, tasks and integrations.
+        
+        TODO:
+        v1 - let's fetch all examples for all unique integrations. Hope this does not exceed token limit. this is simple keyword filter. we are not using vectordb for now.
+
+        v2 - if v1 works, let's fetch only those examples that are similar to the tasks that we are trying to perform. For example, if we are sending an email, then we want to fetch examples where we are sending an email.
+
         """
+
+
         FETCH_EXAMPLES_PROMPT = """
         
 
