@@ -10,7 +10,7 @@ class AutomateRAG:
         self.main_llm = main_llm
         self.main_llm_client = OpenAI()
         self.embed_llm = embed_llm
-        self.valid_integrations = ['sendgrid', 'airtable', 'gmail', 'linear', 'slack', 'supabase', 'github', 'openai'] # TODO: Maintain a list of integrations along with their descriptions
+        self.valid_integrations = ['sendgrid', 'airtable', 'gmail', 'linear', 'slack', 'supabase', 'github', 'openai', 'caldotcom'] # TODO: Maintain a list of integrations along with their descriptions
 
 
     def automate(self, job_description: str):
