@@ -3,6 +3,8 @@ from openai import OpenAI
 import os
 import re
 import json
+import schemas
+from utils.rag_utils import is_valid_json
 
 os.environ['OPENAI_API_KEY'] = "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"
 
@@ -13,6 +15,7 @@ class AutomateRAG:
         self.embed_llm = embed_llm
         self.valid_integrations = ['sendgrid', 'airtable', 'gmail', 'linear', 'slack', 'supabase', 'github', 'openai', 'caldotcom'] # TODO: Maintain a list of integrations along with their descriptions
 
+        
         # TODO: Use GPT4 to generate summaries of all code examples.
 
     def automate(self, job_description: str):
@@ -42,13 +45,21 @@ class AutomateRAG:
 
         self.tasks_and_trigger = self.break_job_into_tasks(job_description=job_description)
 
-        print (f"Tasks and Trigger:\n{'--'*50}\n{self.tasks_and_trigger}\n")
+        prettified_json_output = json.dumps(self.tasks_and_trigger, indent=4)
 
-        # TODO: Create a unique set of integrations
+        print (f"Tasks and Trigger:\n{'--'*50}\n{prettified_json_output}\n")
+
+        if is_valid_json(json_data=self.tasks_and_trigger, schema=schemas.TASKS_SCHEMA):
+            self.usable_integrations = self.__parse_integrations(json_data=self.tasks_and_trigger)
+            print (f"Unique integrations:\n{'--'*50}\n{self.usable_integrations}\n")
+        else:
+            print ("LLM output does not conform to the tasks schema")
+            self.usable_integrations = None        
+
 
         # TODO: Fetch relevant examples for each integration and the task that needs to be achieved using that integration
 
-        self.examples = self.fetch_examples(self.tasks_and_trigger)
+        # self.examples = self.fetch_examples(self.tasks_and_trigger)
 
     def break_job_into_tasks(self, job_description: str) -> List[str]:
         """
@@ -229,18 +240,28 @@ class AutomateRAG:
 
         return integrations, integrations_output
     
-    def __parse_integrations(self, integration_str):
-        # Regular expression to match any non-whitespace characters before a colon
-        # \S+ matches one or more non-whitespace characters
-        # (?=:) is a positive lookahead for a colon, ensuring we match words that are immediately followed by a colon
-        pattern = re.compile(r'\S+(?=:)')
-    
-        # Find all matches of the pattern in the text
-        matches = pattern.findall(integration_str)
-        
-        # Return the list of words found before colons
-        return matches
+    def __parse_integrations(self, json_data):
+        """
+        Extracts unique integration values from both the job_trigger and tasks sections
+        of a JSON object conforming to the specified schema.
 
+        :param json_data: The JSON object conforming to the schema.
+        :return: A set of unique integration values.
+        """
+        # Initialize a set to hold unique integration values
+        unique_integrations = set()
+
+        # Extract integrations from the job_trigger section
+        if 'job_trigger' in json_data and 'integrations' in json_data['job_trigger']:
+            unique_integrations.update(json_data['job_trigger']['integrations'])
+
+        # Extract integrations from each task in the tasks section
+        if 'tasks' in json_data:
+            for task in json_data['tasks']:
+                if 'integrations' in task:
+                    unique_integrations.update(task['integrations'])
+
+        return list(unique_integrations)
 
     def fetch_examples(self, ctx):
         """
