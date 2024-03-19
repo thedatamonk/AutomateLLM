@@ -1,6 +1,9 @@
 import tiktoken
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
+import os
+import glob
+import codecs
 
 EMBEDDING_CTX_LENGTH = 8191
 EMBEDDING_ENCODING = 'cl100k_base'
@@ -31,5 +34,23 @@ def is_valid_json(json_data, schema):
         return True
     except ValidationError:
         return False
+
+def load_examples(dataset_path):
+
+    if not os.path.isdir(dataset_path):
+        raise FileNotFoundError(f"Directory not found: {dataset_path}")
+
+    examples = {}
+    search_pattern = os.path.join(dataset_path, '*.txt')
+    for path in glob.glob(search_pattern):
+        file_name = os.path.basename(path)
+        with open(path, 'r', encoding='utf-8') as file:
+            examples[file_name] = file.read()
+    
+    return examples
+
+
+
+
 
 

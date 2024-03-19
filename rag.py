@@ -4,7 +4,7 @@ import os
 import re
 import json
 import schemas
-from utils.rag_utils import is_valid_json
+from utils.rag_utils import is_valid_json, load_examples
 
 os.environ['OPENAI_API_KEY'] = "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"
 
@@ -43,23 +43,85 @@ class AutomateRAG:
 
         print (f"Job description\n{'--'*50}\n{job_description}\n")
 
-        self.tasks_and_trigger = self.break_job_into_tasks(job_description=job_description)
+        tasks_and_trigger = self.break_job_into_tasks(job_description=job_description)
 
-        prettified_json_output = json.dumps(self.tasks_and_trigger, indent=4)
+        prettified_json_output = json.dumps(tasks_and_trigger, indent=4)
 
         print (f"Tasks and Trigger:\n{'--'*50}\n{prettified_json_output}\n")
 
-        if is_valid_json(json_data=self.tasks_and_trigger, schema=schemas.TASKS_SCHEMA):
-            self.usable_integrations = self.__parse_integrations(json_data=self.tasks_and_trigger)
-            print (f"Unique integrations:\n{'--'*50}\n{self.usable_integrations}\n")
+        if is_valid_json(json_data=tasks_and_trigger, schema=schemas.TASKS_SCHEMA):
+            usable_integrations = self.__parse_integrations(json_data=tasks_and_trigger)
+            print (f"Unique integrations:\n{'--'*50}\n{usable_integrations}\n")
         else:
             print ("LLM output does not conform to the tasks schema")
-            self.usable_integrations = None        
+            usable_integrations = None      
 
 
-        # TODO: Fetch relevant examples for each integration and the task that needs to be achieved using that integration
+        examples = self.fetch_examples_for_integrations(integrations=usable_integrations)
 
-        # self.examples = self.fetch_examples(self.tasks_and_trigger)
+        automation_code = self.generate_code(
+                                        job_description=job_description,
+                                        tasks_and_trigger=tasks_and_trigger,
+                                        usable_integrations=usable_integrations,
+                                        examples=examples
+                            )
+        
+        print (automation_code)
+
+
+    def generate_code(self, job_description, tasks_and_trigger, usable_integrations, examples):
+
+        examples_string = "Here are the examples:\n"  
+        
+        for integration, examples in examples.items():
+            examples_string += f"\n\nThird party API name: {integration}"
+            examples_string += f"\n\nExamples of {integration}"
+
+            for name, code in examples.items():
+                examples_string += f"\n\nExample: {name}"
+                examples_string += f"\n\nCode:\n\n{code}"
+                
+            examples_string += ("\n\n" + "**"*20)
+
+        AUTOMATION_CODE_PROMPT_TEMPLATE = f"""
+**Goal**
+
+You are given the following inputs:
+1. Job description: A job is defined as a sequence of tasks and it can be triggered due to an event, webhook or a schedule.
+2. Sequence of tasks and job trigger as a JSON string
+3. A list of third party APIs that you will need to accomplish your goal.
+4. Examples showcasing different use cases of the third party APIs.
+
+Your goal is to generate an equivalent [trigger.dev](https://trigger.dev/docs/documentation/introduction) Typescript code. Use the examples intelligently
+to generate the code.
+
+List of the third party APIs you can use: {usable_integrations}
+
+"""
+
+        prompt = AUTOMATION_CODE_PROMPT_TEMPLATE + "\n\n" + examples_string
+
+        prompt += f"\n\n**Job description**: {job_description}"
+
+        prompt += "\n\n**JSON string representing the job trigger details and the sequence of tasks**\n\n"
+
+        tasks_and_trigger_string = json.dumps(tasks_and_trigger, indent=4)
+
+        prompt += tasks_and_trigger_string
+
+        prompt += """
+
+**Output guidelines**
+
+1. Only generate the typescript code as output. Do not include any backticks, quotes, explanatory text as part of the output.
+2. The generated code should be valid Typescript code.
+3. Add inline comments in the generated code to make it easy to understand.
+"""
+        prompt += "\n\nGenerated `trigger.dev` Typescript code:\n\n"
+
+        code_output = self.__invoke_llm_api(llm_name=self.main_llm, query=prompt)
+
+        return code_output
 
     def break_job_into_tasks(self, job_description: str) -> List[str]:
         """
@@ -262,6 +324,16 @@ class AutomateRAG:
                     unique_integrations.update(task['integrations'])
 
         return list(unique_integrations)
+
+    def fetch_examples_for_integrations(self, integrations):
+
+        all_examples = {}
+
+        for integration in integrations:
+            if integration in self.valid_integrations:
+                all_examples[integration] = load_examples(dataset_path=f"integrations/{integration}")
+        
+        return all_examples
 
     def fetch_examples(self, ctx):
         """
