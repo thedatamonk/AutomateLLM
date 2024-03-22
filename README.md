@@ -1,84 +1,37 @@
 # AutomateLLM
 
+`AutomateLLM` is an attempt to replicate the functionality of Zapier's "Create a Zap with AI" feature.
 
-**User flow**
-1. Job description in english
-2. Break down jobn into tasks
-    - 2.1. Identify job trigger - (webhook/event/schedule)
-    - 2.2. Identify the sequence of tasks
-3. For the job trigger and each task, identify if any third party APIs are required or not. If yes, then infer their names
-4. Given the job trigger, tasks and the third party APIs, generate an equivalent `trigger.dev` code.
+![Create a Zap with AI](assets/create-a-zap-with-ai.png)
 
-```ts
-import { TriggerClient, eventTrigger } from "@trigger.dev/sdk";
-import { google } from "googleapis";
-import { JWT } from "google-auth-library";
-import { Airtable } from "@trigger.dev/airtable";
+With this, a user can automate workflows like - 
+1. "Send an onboarding email when a new user signs up on my website"
+2. "Send a slack reminder notification to all team members who haven't updated their JIRA tickets."
 
-// Initialize JWT for Gmail API
-const auth = new JWT({
-  email: process.env.GOOGLE_CLIENT_EMAIL,
-  key: process.env.GOOGLE_PRIVATE_KEY!.split(String.raw`\n`).join("\n"),
-  scopes: ["https://www.googleapis.com/auth/gmail.send"],
-});
-auth.subject = process.env.GOOGLE_IMPERSONATION_EMAIL;
+🤩🤩 ***And all this by simply using natural language!!*** 🤩🤩
 
-// Initialize the Gmail API
-const gmail = google.gmail({ version: "v1", auth });
+## Scope
 
-// Initialize Airtable
-const airtable = new Airtable({
-  id: "airtable",
-  token: process.env.AIRTABLE_TOKEN!,
-});
+Fully replicating this feature involves multiple moving components and may require several months to implement it production grade version like that of Zapier.
 
-// Define the job
-client.defineJob({
-  id: "sql-query-failure-notification",
-  name: "Notify user on SQL query failure or empty result",
-  version: "1.0.0",
-  trigger: eventTrigger({
-    name: "sql-query-failure",
-    // Assuming there's a mechanism to trigger this event when an SQL query fails
-    schema: {
-      type: "object",
-      properties: {
-        userEmail: { type: "string" },
-        queryDetails: { type: "string" },
-        reason: { type: "string" },
-      },
-      required: ["userEmail", "queryDetails", "reason"],
-    },
-  }),
-  run: async (payload, io, ctx) => {
-    const { userEmail, queryDetails, reason } = payload;
+In this project, we will focus on developing the RAG (Retrieval Augmented Generation) pipeline that will try to generate automation code as accurately as possible from a plain english sentence.
 
-    // Send an email to the user explaining the failure
-    const emailBody = `Your SQL query failed due to: ${reason}. Query details: ${queryDetails}. Please reply to this email with corrected parameters.`;
-    const email = `To: ${userEmail}\r\nSubject: SQL Query Failure Notification\r\n\r\n${emailBody}`;
+## Solution
+- To solve this task, we will have to convert an english description of a worflow to its equivalent code. This generated code will be executed by some automation code library and the workflow will be created. For this project, we will use [trigger.dev](https://trigger.dev/).
 
-    await io.runTask(
-      "Send Gmail",
-      async () => {
-        await gmail.users.messages.send({
-          userId: "me",
-          requestBody: {
-            raw: Buffer.from(email).toString("base64"),
-          },
-        });
-      },
-      { name: "Send Gmail", icon: "google" }
-    );
+- We will use GPT-4 (`gpt-4-0125-preview`) as our main LLM to generate the code. But this can we swapped with any other LLM.
 
-    // Here you would wait for the user's reply and trigger a webhook to call a Python script
-    // This part is not directly implementable in Trigger.dev as it requires external setup
-    // to listen for the email reply and then trigger the webhook.
+- To guide our LLM in this task, we will use a mix of prompt engineering as well as retrieve relevant code examples from the [official documentation of Trigger.dev](https://trigger.dev/apis).
 
-    // Assuming the webhook has been called and the Python script has parsed the email response
-    // and provided the corrected SQL query parameters, we now rerun the SQL query in Airtable.
+**RAG #1: Retrieve all examples**
 
-    // This is a placeholder for rerunning the SQL query in Airtable based on the parsed email response data.
-    // The actual implementation would depend on the structure of your Airtable and the SQL query being used.
-  },
-});
-```
+![RAG 1 pipeline](assets/RAG_1_AutomateLLM.png)
+
+**RAG #2: Retrieve only relevant examples**
+
+![RAG 2 pipeline](assets/RAG_2_AutomateLLM.png)
+
+
+
+## Files and folders
+## Next steps
