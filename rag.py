@@ -4,10 +4,13 @@ import os
 import re
 import json
 import schemas
-from utils.rag_utils import is_valid_json, load_examples, load_example
+from utils.rag_utils import is_valid_json, load_examples
 from collections import defaultdict
+from dotenv import load_dotenv
+from prompt_templates import TASKS_BREAKDOWN_PROMPT
 
-os.environ['OPENAI_API_KEY'] = "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"
+load_dotenv()
+os.environ['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
 
 class AutomateRAG:
     def __init__(self, main_llm: str = "gpt-4-0125-preview", embed_llm: str = "text-embedding-ada-002") -> None:
@@ -35,41 +38,42 @@ class AutomateRAG:
             3. Identify the integrations that might be helpful. For instance, to send a email everyday at 4 PM, we will need tools like SendGrid, Gmail etc.
                 Ensure the identified integrations are valid integrations of `trigger.dev`.
             
-            4. Based on points 1 and 3, fetch relevant examples.
+            4. Based on points 3, load all examples for the identified integrations.
 
-            5. Based on points 1, 2 and 3, fetch relevant sections of documentation so that only valid methods and attributes are used.
-
-            6. Add outputs of points 4 and 5 as context, and generate the final code iteratively.
-
-            7. Code correction
+            5. Add outputs of step 1, 2, 3 and 4 in a prompt and then generate the final automation code.
         """
 
         print (f"Job description\n{'--'*50}\n{job_description}\n")
 
-        # break down the job into tasks and identify the job trigger
+        # Step 1 and 2: Break down the job into tasks and identify the job trigger
         tasks_and_trigger = self.break_job_into_tasks(job_description=job_description)
 
         prettified_json_output = json.dumps(tasks_and_trigger, indent=4)
 
-        print (f"Tasks and Trigger:\n{'--'*50}\n{prettified_json_output}\n")
+        print (f"\nTasks and Trigger:\n{'--'*50}\n{prettified_json_output}\n")
 
-        # identify unique integrations/third party APIs that are required to complete the job
-        # these APIs also help fetch relevant code examples from trigger.dev documentation (link: https://trigger.dev/apis)
+        # Step 3: 
+        # Identify unique integrations/third party APIs that are required to complete the job
         if is_valid_json(json_data=tasks_and_trigger, schema=schemas.TASKS_SCHEMA):
             usable_integrations = self.__parse_integrations(json_data=tasks_and_trigger)
-            print (f"Unique integrations:\n{'--'*50}\n{usable_integrations}\n")
+            print (f"\nIdentified unique integrations:\n{'--'*50}\n{usable_integrations}\n")
         else:
-            print ("LLM output does not conform to the tasks schema")
+            print ("\nLLM output does not conform to the tasks schema\n")
             usable_integrations = None      
 
-        # based on the identified integrations, fetch relevant code examples from trigger.dev documentation
-        # in the current implementation, we have copied the code examples manually and stored them in .txt files
-        # See integrations/ directory in the project folder
-        examples = self.fetch_examples_for_integrations(integrations=usable_integrations)
+        # Step 4: 
+        # Based on the identified integrations in step 3, fetch all code examples for each identied integration
+        # from trigger.dev documentation
+        # The code examples can be found here: https://trigger.dev/apis
+        # In the current implementation, we have copied the code examples manually and stored them in .txt files
+        # See 'integrations/' directory in the project folder
+        
+        examples = self.fetch_all_integration_examples(integrations=usable_integrations)
+        total_examples = sum([len(api_examples) for api, api_examples in examples.items()])
 
-        print (f"Examples:\n{examples}")
+        print (f"{total_examples} integration examples loaded.\n\n")
 
-        # Generate final code using identified tasks, job trigger and the examples.
+        # Step 5: Generate final code using identified tasks, job trigger and the examples.
         automation_code = self.generate_code(
                                         job_description=job_description,
                                         tasks_and_trigger=tasks_and_trigger,
@@ -79,31 +83,59 @@ class AutomateRAG:
         
         return automation_code
 
-    def pro_automate(self, job_description: str):
+    def smart_automate(self, job_description: str):
+        """
+        Given a job description, break down into tasks and then generate equivalent `trigger.dev` TypeScript code
+        which when executed will create the job.
         
+        Steps to follow - 
+
+            1. Break down the job description into 1 or more tasks. Each step should be such that it can be implemented using `trigger.dev` SDK and its integrations.
+            
+            2. Identify the job trigger and its type. This can be an event, webhook or scheduled trigger. 
+            
+            3. Identify the integrations that might be helpful. For instance, to send a email everyday at 4 PM, we will need tools like SendGrid, Gmail etc.
+                Ensure the identified integrations are valid integrations of `trigger.dev`.
+            
+            4. Based on points 1, 2 and 3, load ONLY 'relevant' examples for each integration.
+
+            5. Add outputs of step 1, 2, 3 and 4 in a prompt and then generate the final automation code.
+        """
+
         print (f"Job description\n{'--'*50}\n{job_description}\n")
         
-        # break down the job into tasks and identify the job trigger
+        # Step 1 and 2: Break down the job into tasks and identify the job trigger
         tasks_and_trigger = self.break_job_into_tasks(job_description=job_description)
 
         prettified_json_output = json.dumps(tasks_and_trigger, indent=4)
 
-        print (f"Tasks and Trigger:\n{'--'*50}\n{prettified_json_output}\n")
+        print (f"\nTasks and Trigger:\n{'--'*50}\n{prettified_json_output}\n")
 
-        # identify unique integrations/third party APIs that are required to complete the job
-        # these APIs also help fetch relevant code examples from trigger.dev documentation (link: https://trigger.dev/apis)
+        # Step 3:
+        # Identify unique integrations/third party APIs that are required to complete the job
         if is_valid_json(json_data=tasks_and_trigger, schema=schemas.TASKS_SCHEMA):
             usable_integrations = self.__parse_integrations(json_data=tasks_and_trigger)
-            print (f"Unique integrations:\n{'--'*50}\n{usable_integrations}\n")
+            print (f"\nUnique integrations:\n{'--'*50}\n{usable_integrations}\n")
         else:
-            print ("LLM output does not conform to the tasks schema")
+            print ("\nLLM output does not conform to the tasks schema")
             usable_integrations = None
 
-
-        examples = self.smart_fetch_integrations_examples(
+        # Step 4:
+        # Based on the outputs of points 1, 2, and 3, fetch only relevant examples
+        # from trigger.dev documentation. The 'relevancy' is defined as "How helpful are the examples in implementing the given tasks in hand."
+        # The code examples can be found here: https://trigger.dev/apis
+        # In the current implementation, we have copied the code examples manually and stored them in .txt files
+        # See 'integrations/' directory in the project folder
+        
+        examples = self.fetch_select_integrations_examples(
                                             tasks_and_trigger=tasks_and_trigger,
                                             integrations=usable_integrations
                                         )
+        
+        total_examples = sum([len(api_examples) for api, api_examples in examples.items()])
+        print (f"Identified and loaded {total_examples} integration examples.\n\n")
+
+        # Step 5: Generate final code using identified tasks, job trigger and the examples.
         automation_code = self.generate_code(
                                             job_description=job_description,
                                             tasks_and_trigger=tasks_and_trigger,
@@ -162,9 +194,7 @@ List of the third party APIs you can use: {usable_integrations}
 3. Add inline comments in the generated code to make it easy to understand.
 """
         prompt += "\n\nGenerated `trigger.dev` Typescript code:\n\n"
-
-        print (f"Prompt: {prompt}")
-        print ("-----*------*--------")
+        
         code_output = self.__invoke_llm_api(llm_name=self.main_llm, query=prompt)
 
         return code_output
@@ -172,105 +202,6 @@ List of the third party APIs you can use: {usable_integrations}
     def break_job_into_tasks(self, job_description: str) -> List[str]:
         """
         Given a job description, break down into one or more tasks
-        """
-        TASKS_BREAKDOWN_PROMPT = """
-        **Goal**
-        You are given a job description. A Job is defined as a sequence of tasks and it can be triggered due to an event, webhook or a schedule
-
-        Your goal is to understand the job and - (1) Identify the job trigger (2) Break down the job into a sequence of tasks.
-
-        Strictly adhere to the output format. The output format must be a valid JSON and its schema is defined below under the **Output format** section.
-
-        Do not include any leading or trailing backticks, single quotes, double quotes or any other symbols in the output.
-
-        The output should always start with a { and end with a }
-
-        **Output format**
-        
-        {
-            "job_trigger": {
-                "type": <<trigger_type>>, // valid values are 'webhook', 'event', 'schedule'
-                "explanation": <<One line explanation for why this trigger type is chosen>>,
-                "params": <<Relevant trigger params>> // For example, for a 'schedule' trigger, it can be the actual schedule like 'Every Friday at 4 PM'.
-                "integrations: <<List of third party APIs required to implement the job trigger>> // NOTE: The third party APIs have to be selected from a predefined list of APIs. Also, in case no API is required or no valid option is found in the predefined list, keep the list empty.
-            },
-
-            "tasks": [
-                {   
-                    "task_sequence_id": 1,
-                    "task_desc": <<Exactly one line concise and accurate description of the task>>,
-                    "integrations: <<List of third party APIs required to implement the task>> // NOTE: The third party APIs have to be selected from a predefined list of APIs. Also, in case no API is required or no valid option is found in the predefined list, keep the list empty.
-
-                },
-                {
-                    "task_sequence_id": 2,
-                    "task_desc": <<Exactly one line concise and accurate description of the task>>,
-                    "integrations: <<List of third party APIs required to implement the task>> // NOTE: The third party APIs have to be selected from a predefined list of APIs. Also, in case no API is required or no valid option is found in the predefined list, keep the list empty.
-
-                },
-                .
-                .
-                .
-                {
-                    "task_sequence_id": N,
-                    "task_desc": <<Exactly one line concise and accurate description of the task>>,
-                    "integrations: <<List of third party APIs required to implement the task>> // NOTE: The third party APIs have to be selected from a predefined list of APIs. Also, in case no API is required or no valid option is found in the predefined list, keep the list empty.
-
-                }
-            ]
-        }
-
-        **Examples**
-
-        Example 1:
-        Job Description: Update Airtable when a new subscription is added to Stripe.
-
-        Output:
-
-        {
-            "job_trigger": {
-                "type": "webhook",
-                "explanation": "Trigger type is 'webhook' because job will listen to 'New subscription' events from Stripe API",
-                "params": "New subscription is added to Stripe database",
-                "integrations": ["stripe"]
-            },
-
-            "tasks": [
-                {   
-                    "task_sequence_id": 1,
-                    "task_desc": "Add a new record containing the new subscription details in Airtable.",
-                    "integrations": ["airtable"]
-                }
-            ]
-        }        
-        
-        Example 2:
-        Job Description: Send an activity summary email, and post it to Slack at 4PM every Friday.
-
-        Output:
-
-        {
-            "job_trigger": {
-                "type": "schedule",
-                "explanation": "Trigger type is 'schedule' because job will trigger every Friday at 4 PM.",
-                "params": "Every Friday at 4 PM.",
-                "integrations": []
-            },
-
-            "tasks": [
-                {   
-                    "task_sequence_id": 1,
-                    "task_desc": "Send a weekly summary email to users who have opted-in to receive weekly summaries.",
-                    "integrations": ["sendgrid"]
-                },
-                {
-                    "task_sequence_id": 2,
-                    "task_desc": "Send a slack message to relevant channel informing that a weekly summary has been sent to the relevant users.",
-                    "integrations": ["slack"]
-                }
-            ]
-        }
-
         """
         
         prompt = TASKS_BREAKDOWN_PROMPT + f"\n**Job Description**\n{job_description}"
@@ -298,55 +229,6 @@ List of the third party APIs you can use: {usable_integrations}
             json_data = json.loads(cleaned_input_text)
             return json_data
         
-
-    def identify_integrations(self, job_trigger: Dict, tasks: str) -> List[str]:
-        """
-        Given a job trigger and the identified tasks, identify what integrations we might need to implement the tasks.
-        """
-        INTEGRATION_PROMPT_TEMPLATE = f"""
-        
-        **Goal**
-        You are given the following details of a job that needs to be automated using [trigger.dev](https://trigger.dev/docs/documentation/introduction) code.
-
-        1. Job trigger details: Type of trigger and the relevant parameters
-        2. List of tasks that need to be performed in the given sequence to complete the job.
-
-        Your goal is to identify the 3rd party APIs that might be required to implement these tasks.
-        Note that the identified APIs need to be from a predefined list of APIs/integrations that `trigger.dev` supports.
-        This predefined list is also provided to you as input.
-
-        **Guidelines to follow**
-
-        1. Do not hallucinate 3rd party APIs. Strictly select 1 or more options from the predefined list.
-        2. Strictly adhere to the output format.
-        3. For a task, if more than one API alternatives are present, then select only one. For instance, if the task is to send an email, trigger.dev has integrations with both Gmail and SendGrid, then you have to select only one of these.
-
-        {job_trigger}
-
-        **Job Tasks**
-        {tasks}
-
-        **List of predefined API/integrations**
-        {self.valid_integrations}
-
-        **Output format**
-
-        A numbered list where each list item contains the API Name and one line describing the purpose of that API.
-        The API name and the one-line description should be separate by a ': ' (without the quotes).
-        
-        1. <<API_NAME_1>>: <<DESCRIPTION_1>>
-        2. <<API_NAME_2>>: <<DESCRIPTION_2>>
-        .
-        .
-        N. <<API_NAME_N>>: <<DESCRIPTION_N>>
-
-        """
-
-        integrations_output = self.__invoke_llm_api(llm_name=self.main_llm, query=INTEGRATION_PROMPT_TEMPLATE)
-
-        integrations = self.__parse_integrations(integrations_output)
-
-        return integrations, integrations_output
     
     def __parse_integrations(self, json_data):
         """
@@ -371,8 +253,10 @@ List of the third party APIs you can use: {usable_integrations}
 
         return list(unique_integrations)
 
-    def fetch_examples_for_integrations(self, integrations):
-
+    def fetch_all_integration_examples(self, integrations):
+        """
+        Given a list of integrations, load all the examples for each integration
+        """
         all_examples = {}
 
         for integration in integrations:
@@ -382,20 +266,15 @@ List of the third party APIs you can use: {usable_integrations}
         return all_examples
     
 
-    def smart_fetch_integrations_examples(self, tasks_and_trigger, integrations):
+    def fetch_select_integrations_examples(self, tasks_and_trigger, integrations):
         """
-        Out of all the examples for a given API, retrieve only those examples that can really help
-        implementing the job trigger and the individual tasks.
-
-        So I think in order to implement this, we will need to identify what the example is doing and generate a nice summary
-        of each code example.
-
-        For each tasks and its integration, first filter out examples for that integration only
-        Then filter out examples, where the integration is trying to do something similar to what
-        is asked in the given task
-
-        If more than 1 examples are relevant, then fetch only first k.
+        Given a list of integrations and a JSON object representing the task breakdown of a job,
+        use LLM to identify 'relevant' examples that will help generate automation code
+        for the given job.
         """
+        # Group tasks by integration and create a dictionary
+        # where keys are the integration/third party API names
+        # and values are the list of tasks that these APIs are relevant for
         integrations_to_tasks_mapping = defaultdict(list)
         for task in tasks_and_trigger['tasks']:
             if len(task['integrations']):
@@ -411,14 +290,16 @@ List of the third party APIs you can use: {usable_integrations}
 
         all_examples = {}
 
+        # Use LLM to identify relevant code examples from a given list of code examples
         for integration, tasks in integrations_to_tasks_mapping.items():
-            all_examples[integration] = self.select_top_k_examples(integration, tasks)
+            all_examples[integration] = self.identify_relevant_examples(integration, tasks, max_examples=2)
         
-        selected_code_snippets = self.fetch_selected_examples(all_examples)
+        # Load selected examples from their respective files
+        selected_code_snippets = self.load_relevant_examples(all_examples)
 
         return selected_code_snippets
     
-    def fetch_selected_examples(self, input_dict):
+    def load_relevant_examples(self, input_dict):
         output_dict = defaultdict(list)
 
         for integration, examples_list in input_dict.items():
@@ -427,7 +308,7 @@ List of the third party APIs you can use: {usable_integrations}
 
         return output_dict
     
-    def select_top_k_examples(self, integration, tasks):
+    def identify_relevant_examples(self, integration, tasks, max_examples=1):
 
         print (f"Finding relevant examples for API: {integration}...")
         for item in self.integrations_metadata['integrations']:
@@ -452,7 +333,7 @@ In order to accomplish your goal -
 1. understand the tasks and their intent
 2. understand the example JSON, in particular the `description` field of each example.
 3. based on 1. and 2. figure out which examples can help accomplish the tasks.
-4. fetch at least 2 example usecases for each task.
+4. fetch atleast 1 and atmost {max_examples} example usecases for each task.
 
 Output format:
 1. <EXAMPLE 1 NAME>: <Task for which this example will be helpful>
@@ -472,9 +353,12 @@ Output
 
         print (f"Here are the selected examples for API {integration}:\n\n{selected_examples}\n\n")
 
-        return selected_examples
+        return selected_examples[:max_examples]
     
     def __invoke_llm_api(self, llm_name, query, llm_provider='openai'):
+        """
+        Generic method to call LLM API
+        """
 
         if llm_provider == "openai":
             completion = self.main_llm_client.chat.completions.create(
