@@ -22,5 +22,9 @@ def test_automate():
     # output = rag.smart_automate("Whenever an SQL query in airtable returns a blank result or it's incorrect, send an email via Gmail to the user who ran the query. In the email mention why the query failed or returned empty results. Also specify which parameters from the user are required to correct the query. Now wait for the user's reply. Whenever the user replies to the email, rerun the query in airtable.")
     # print (f"Code output:\n\n{output}")
 
+    # output = rag.automate("Send onboarding emails when new members join a Slack workspace")
+    output = rag.smart_automate("Send onboarding emails when new members join a Slack workspace")
+    print (f"Code output:\n\n{output}")
+    
 if __name__ == "__main__":
     test_automate()
