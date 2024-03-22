@@ -3,14 +3,19 @@ from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 import os
 import glob
-import codecs
 
 EMBEDDING_CTX_LENGTH = 8191
 EMBEDDING_ENCODING = 'cl100k_base'
 
 
 def num_tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
-    """Returns the number of tokens in a text string."""
+    """
+    Returns the number of tokens in a text string.
+    
+    :param string: Input text string
+    :param encoding_name: Encoding used for creating the vector embeddings
+    :return: number of tokens of the input string
+    """
     encoding = tiktoken.get_encoding(encoding_name)
     num_tokens = len(encoding.encode(string))
     return num_tokens
@@ -36,6 +41,13 @@ def is_valid_json(json_data, schema):
         return False
 
 def load_examples(dataset_path, select_examples=None):
+    """
+    Load all or selected examples from a directory at `dataset_path`
+
+    :param dataset_path: directory containing API wise code examples
+    :param select_examples: List containing filenames of selected examples
+    :return: dictionary where key is filename and value is the actual code snippet
+    """
 
     if not os.path.isdir(dataset_path):
         raise FileNotFoundError(f"Directory not found: {dataset_path}")
@@ -50,23 +62,4 @@ def load_examples(dataset_path, select_examples=None):
                 examples[file_name] = file.read()
     
     return examples
-
-
-def load_example(path):
-
-    filename = os.path.basename(path)
-
-    if not os.path.isfile(path=path):
-        raise FileNotFoundError(f"File not found: {path}")
-
-    examples = {}
-    with open(path, "r", encoding="utf-8") as file:
-        examples[filename] = file.read()
-    
-    return examples
-
-
-
-
-
 

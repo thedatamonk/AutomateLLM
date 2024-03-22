@@ -8,25 +8,25 @@ from utils.rag_utils import truncate_text_tokens, num_tokens_from_string, EMBEDD
 
 class DocumentationEmbedding:
     def __init__(self, collection_name, json_dataset_file_path, vector_size=1536) -> None:
-        # self.vectordb_client = self.create_vectordb_client(is_testing=True, vectordb_provider='qdrant')
+
+        self.vectordb_client = self.create_vectordb_client(is_testing=True, vectordb_provider='qdrant')
         self.vector_size = vector_size
-
         self.collection_name = collection_name
-        # self.all_collections = self.vectordb_client.get_collections()
+        self.all_collections = self.vectordb_client.get_collections()
 
-        # if collection_name not in self.all_collections:
-        #     print (f"Collection {collection_name} does not exists. Creating a new collection...")
-        #     self.vectordb_client.create_collection(
-        #         collection_name=collection_name,
-        #         vectors_config = {
-        #             "example_code": models.VectorParams(
-        #                 distance=models.Distance.COSINE,
-        #                 size=self.vector_size,
-        #             )
-        #         }
-        #     )
+        if collection_name not in self.all_collections:
+            print (f"Collection {collection_name} does not exists. Creating a new collection...")
+            self.vectordb_client.create_collection(
+                collection_name=collection_name,
+                vectors_config = {
+                    "example_code": models.VectorParams(
+                        distance=models.Distance.COSINE,
+                        size=self.vector_size,
+                    )
+                }
+            )
 
-        #     print (f"New collection with the name {collection_name} created\n")
+            print (f"New collection with the name {collection_name} created\n")
         
         self.json_dataset_file_path = json_dataset_file_path
         
@@ -41,11 +41,11 @@ class DocumentationEmbedding:
             print (f"Dataset at path {json_dataset_file_path} could not be loaded successfully.\nError: {e}")
             self.json_dataset = None
 
-        # if self.json_dataset:        
-        #     for record in self.json_dataset:
-        #         print (record.keys())
+        if self.json_dataset:   
+            for record in self.json_dataset:
+                print (record.keys())
             
-        #     print (f"Total records processed: {len(self.json_dataset)}")
+            print (f"Total records processed: {len(self.json_dataset)}")
 
 
     def create_vectordb_client(self, is_testing: bool, vectordb_provider: str):

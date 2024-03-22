@@ -1,9 +1,23 @@
+"""
+This script loops over all an offline dump of code examples of third party APIs of trigger.dev.
+
+Original source: https://trigger.dev/apis
+
+We then use GPT-4 to generate two line summary of each code snippet and then append it to a JSON object.
+The JSON object is stored in `integration_metadata.json`.
+
+As part of the code, we already have run this script and provided the output JSON file.
+If you want to overwrite this file, run this script in your CLI.
+
+python create_metadata.py
+
+"""
 import os
 import json
 from openai import OpenAI
+
 # Assuming 'integrations' is your base directory
 base_dir = 'integrations'
-
 
 llm_client = OpenAI()
 

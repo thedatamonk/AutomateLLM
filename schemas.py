@@ -1,4 +1,3 @@
-
 TASKS_SCHEMA = {
   "type": "object",
   "properties": {
