@@ -35,7 +35,7 @@ def is_valid_json(json_data, schema):
     except ValidationError:
         return False
 
-def load_examples(dataset_path):
+def load_examples(dataset_path, select_examples=None):
 
     if not os.path.isdir(dataset_path):
         raise FileNotFoundError(f"Directory not found: {dataset_path}")
@@ -44,8 +44,24 @@ def load_examples(dataset_path):
     search_pattern = os.path.join(dataset_path, '*.txt')
     for path in glob.glob(search_pattern):
         file_name = os.path.basename(path)
-        with open(path, 'r', encoding='utf-8') as file:
-            examples[file_name] = file.read()
+        
+        if select_examples is None or file_name in select_examples:        
+            with open(path, 'r', encoding='utf-8') as file:
+                examples[file_name] = file.read()
+    
+    return examples
+
+
+def load_example(path):
+
+    filename = os.path.basename(path)
+
+    if not os.path.isfile(path=path):
+        raise FileNotFoundError(f"File not found: {path}")
+
+    examples = {}
+    with open(path, "r", encoding="utf-8") as file:
+        examples[filename] = file.read()
     
     return examples
 
