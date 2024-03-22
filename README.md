@@ -53,5 +53,55 @@ In this project, we will focus on developing the RAG (Retrieval Augmented Genera
 ![RAG 2 pipeline](assets/RAG_2_AutomateLLM.png)
 
 ## Files and folders
+```
+assets/     # images assets for README.md
+
+datasets/   
+    create_metadata.py      # script that iterates over all examples
+                            # in /integrations directory, 
+                            # summarizes each example 
+                            # and then aggregates the summaries
+                            # as a JSON
+
+    integration_metadata.json     # output of create_metadata.py
+
+integrations/               # trigger.dev example codes
+                            # that are used as context
+                            # for code generation
+  airtable/
+    - new-airtable-record-from-typeform.txt
+    - integrations/airtable/stripe-sub-update-airtable.txt
+
+  caldotcom/
+    - 
+    -
+  .
+  .
+  .
+  supabase/
+
+tests/
+  - test_rag.py         # testing script to test the RAG pipelines for sample inputs
+
+utils/
+  - rag_utils.py
+
+.env.example            # example environment file where you must specify your OpenAI API key
+
+Demo.ipynb              # Demo notebook that demonstrates the 2 RAG pipelines
+
+prompt_templates.py     # Very long prompt templates are placed here to make the code readable
+
+rag.py                  # main script where the RAG pipelines are defined
+
+requirements.txt        # Requirements file
+
+schemas.py              # JSON schema used for validating output of step 1 of the RAG pipeline
+
+```
 
 ## Next steps
+
+In this version of AutoLLM, we have only used example codes from the trigger.dev documentation.
+For more accurate responses, we can parse and embed the complete documentation of trigger.dev in a vector database.
+
