@@ -4,7 +4,8 @@ import os
 import re
 import json
 import schemas
-from utils.rag_utils import is_valid_json, load_examples
+from utils.rag_utils import is_valid_json, load_examples, load_example
+from collections import defaultdict
 
 os.environ['OPENAI_API_KEY'] = "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"
 
@@ -13,10 +14,12 @@ class AutomateRAG:
         self.main_llm = main_llm
         self.main_llm_client = OpenAI()
         self.embed_llm = embed_llm
-        self.valid_integrations = ['sendgrid', 'airtable', 'gmail', 'linear', 'slack', 'supabase', 'github', 'openai', 'caldotcom'] # TODO: Maintain a list of integrations along with their descriptions
-
+        self.valid_integrations = ['sendgrid', 'airtable', 'gmail', 'linear', 'slack', 'supabase', 'github', 'openai', 'caldotcom']
         
-        # TODO: Use GPT4 to generate summaries of all code examples.
+        with open("./datasets/integration_metadata.json", 'r') as infile:
+            self.integrations_metadata = json.load(infile)
+            print ("Integrations metadata loaded successfully.")
+        
 
     def automate(self, job_description: str):
         """
@@ -43,12 +46,15 @@ class AutomateRAG:
 
         print (f"Job description\n{'--'*50}\n{job_description}\n")
 
+        # break down the job into tasks and identify the job trigger
         tasks_and_trigger = self.break_job_into_tasks(job_description=job_description)
 
         prettified_json_output = json.dumps(tasks_and_trigger, indent=4)
 
         print (f"Tasks and Trigger:\n{'--'*50}\n{prettified_json_output}\n")
 
+        # identify unique integrations/third party APIs that are required to complete the job
+        # these APIs also help fetch relevant code examples from trigger.dev documentation (link: https://trigger.dev/apis)
         if is_valid_json(json_data=tasks_and_trigger, schema=schemas.TASKS_SCHEMA):
             usable_integrations = self.__parse_integrations(json_data=tasks_and_trigger)
             print (f"Unique integrations:\n{'--'*50}\n{usable_integrations}\n")
@@ -56,9 +62,14 @@ class AutomateRAG:
             print ("LLM output does not conform to the tasks schema")
             usable_integrations = None      
 
-
+        # based on the identified integrations, fetch relevant code examples from trigger.dev documentation
+        # in the current implementation, we have copied the code examples manually and stored them in .txt files
+        # See integrations/ directory in the project folder
         examples = self.fetch_examples_for_integrations(integrations=usable_integrations)
 
+        print (f"Examples:\n{examples}")
+
+        # Generate final code using identified tasks, job trigger and the examples.
         automation_code = self.generate_code(
                                         job_description=job_description,
                                         tasks_and_trigger=tasks_and_trigger,
@@ -66,8 +77,41 @@ class AutomateRAG:
                                         examples=examples
                             )
         
-        print (automation_code)
+        return automation_code
 
+    def pro_automate(self, job_description: str):
+        
+        print (f"Job description\n{'--'*50}\n{job_description}\n")
+        
+        # break down the job into tasks and identify the job trigger
+        tasks_and_trigger = self.break_job_into_tasks(job_description=job_description)
+
+        prettified_json_output = json.dumps(tasks_and_trigger, indent=4)
+
+        print (f"Tasks and Trigger:\n{'--'*50}\n{prettified_json_output}\n")
+
+        # identify unique integrations/third party APIs that are required to complete the job
+        # these APIs also help fetch relevant code examples from trigger.dev documentation (link: https://trigger.dev/apis)
+        if is_valid_json(json_data=tasks_and_trigger, schema=schemas.TASKS_SCHEMA):
+            usable_integrations = self.__parse_integrations(json_data=tasks_and_trigger)
+            print (f"Unique integrations:\n{'--'*50}\n{usable_integrations}\n")
+        else:
+            print ("LLM output does not conform to the tasks schema")
+            usable_integrations = None
+
+
+        examples = self.smart_fetch_integrations_examples(
+                                            tasks_and_trigger=tasks_and_trigger,
+                                            integrations=usable_integrations
+                                        )
+        automation_code = self.generate_code(
+                                            job_description=job_description,
+                                            tasks_and_trigger=tasks_and_trigger,
+                                            usable_integrations=usable_integrations,
+                                            examples=examples
+                            )
+        
+        return automation_code
 
     def generate_code(self, job_description, tasks_and_trigger, usable_integrations, examples):
 
@@ -119,6 +163,8 @@ List of the third party APIs you can use: {usable_integrations}
 """
         prompt += "\n\nGenerated `trigger.dev` Typescript code:\n\n"
 
+        print (f"Prompt: {prompt}")
+        print ("-----*------*--------")
         code_output = self.__invoke_llm_api(llm_name=self.main_llm, query=prompt)
 
         return code_output
@@ -334,25 +380,100 @@ List of the third party APIs you can use: {usable_integrations}
                 all_examples[integration] = load_examples(dataset_path=f"integrations/{integration}")
         
         return all_examples
+    
 
-    def fetch_examples(self, ctx):
+    def smart_fetch_integrations_examples(self, tasks_and_trigger, integrations):
         """
-        This is where we will do retrieval from qdrant vector DB
-        We will fetch all examples that are relevant to the job trigger, tasks and integrations.
+        Out of all the examples for a given API, retrieve only those examples that can really help
+        implementing the job trigger and the individual tasks.
+
+        So I think in order to implement this, we will need to identify what the example is doing and generate a nice summary
+        of each code example.
+
+        For each tasks and its integration, first filter out examples for that integration only
+        Then filter out examples, where the integration is trying to do something similar to what
+        is asked in the given task
+
+        If more than 1 examples are relevant, then fetch only first k.
+        """
+        integrations_to_tasks_mapping = defaultdict(list)
+        for task in tasks_and_trigger['tasks']:
+            if len(task['integrations']):
+                for integration in task['integrations']:
+                    integrations_to_tasks_mapping[integration].append(task['task_desc'])
         
-        TODO:
-        v1 - let's fetch all examples for all unique integrations. Hope this does not exceed token limit. this is simple keyword filter. we are not using vectordb for now.
+        job_trigger = tasks_and_trigger['job_trigger']
+        if len(job_trigger['integrations']):
+            for integration in job_trigger['integrations']:
+                integrations_to_tasks_mapping[integration].append(job_trigger['explanation'])
+        
+        assert set(integrations_to_tasks_mapping.keys()) == set(integrations), "Mismatch in the integrations."
 
-        v2 - if v1 works, let's fetch only those examples that are similar to the tasks that we are trying to perform. For example, if we are sending an email, then we want to fetch examples where we are sending an email.
+        all_examples = {}
 
-        """
+        for integration, tasks in integrations_to_tasks_mapping.items():
+            all_examples[integration] = self.select_top_k_examples(integration, tasks)
+        
+        selected_code_snippets = self.fetch_selected_examples(all_examples)
 
+        return selected_code_snippets
+    
+    def fetch_selected_examples(self, input_dict):
+        output_dict = defaultdict(list)
 
-        FETCH_EXAMPLES_PROMPT = """
+        for integration, examples_list in input_dict.items():
+            if integration in self.valid_integrations:
+                output_dict[integration] = load_examples(dataset_path=f"integrations/{integration}", select_examples=examples_list)
+
+        return output_dict
+    
+    def select_top_k_examples(self, integration, tasks):
+
+        print (f"Finding relevant examples for API: {integration}...")
+        for item in self.integrations_metadata['integrations']:
+            if item['api_name'] == integration:
+                all_examples = item['examples']
+                break
         
 
-        """
+        prompt = f"""
+You are given some example usecases for a third party API called {integration}.
 
+Here is a JSON containing the examples:
+
+{all_examples}
+
+You are also given a list of tasks:
+
+{tasks}
+
+In order to accomplish your goal -
+
+1. understand the tasks and their intent
+2. understand the example JSON, in particular the `description` field of each example.
+3. based on 1. and 2. figure out which examples can help accomplish the tasks.
+4. fetch at least 2 example usecases for each task.
+
+Output format:
+1. <EXAMPLE 1 NAME>: <Task for which this example will be helpful>
+2. <EXAMPLE 2 NAME>: <Task for which this example will be helpful>
+.
+.
+
+
+Output
+
+"""
+
+        output = self.__invoke_llm_api(llm_name=self.main_llm, query=prompt)
+
+        pattern = r"\b[\w-]+\.txt\b"
+        selected_examples = re.findall(pattern, output)
+
+        print (f"Here are the selected examples for API {integration}:\n\n{selected_examples}\n\n")
+
+        return selected_examples
+    
     def __invoke_llm_api(self, llm_name, query, llm_provider='openai'):
 
         if llm_provider == "openai":
