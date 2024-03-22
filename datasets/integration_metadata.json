@@ -1,0 +1,177 @@
+{
+    "integrations": [
+        {
+            "api_name": "caldotdom",
+            "examples": [
+                {
+                    "name": "cal-find-bookings.txt",
+                    "description": "This code snippet is designed to define a job that finds all bookings from Cal.com by making an API call. It does this by using the Trigger.dev SDK to create a job that triggers on a specific event (`cal.com.find.bookings`). The job's execution involves making an HTTP GET request to Cal.com's bookings API endpoint, using an API key for authentication, and then processing the response to return the bookings data. The operation is wrapped in a `runTask` function to ensure it can be paused and resumed, and to log the task's execution details for better monitoring and debugging."
+                },
+                {
+                    "name": "cal-slack-meeting-alert.txt",
+                    "description": "This code snippet is designed to automatically send a message to a specified Slack channel whenever a meeting is booked or canceled through Cal.com. It does this by defining an HTTP endpoint to listen for booking events from Cal.com, verifying the request for security, and then formatting and sending a message to Slack with the details of the booked or canceled meeting, including the attendees and the start and end times."
+                }
+            ]
+        },
+        {
+            "api_name": "sendgrid",
+            "examples": [
+                {
+                    "name": "sendgrid-send-basic-email.txt",
+                    "description": "This code snippet is designed to send a basic email using SendGrid, an email delivery service. It accomplishes this by defining a job that triggers on a specific event, validates the email parameters (recipient, subject, body text, and sender) using a schema, and then uses the SendGrid integration to send the email with the provided details."
+                },
+                {
+                    "name": "sendgrid-send-activity-summary.txt",
+                    "description": "This code snippet is designed to send a weekly summary email to users who have opted in (indicated by `summariesEnabled = true`) and then report the total number of emails sent and not sent to a Slack channel. It accomplishes this by defining a job that runs every Friday at 4pm, iterates through a list of users from a database, sends an email to those who have opted in, counts the number of emails sent and not sent, and finally posts these totals to a specified Slack channel."
+                },
+                {
+                    "name": "slack-sendgrid-send-activity-summary.txt",
+                    "description": "This code is designed to send a weekly summary email to users who have opted in (indicated by `summariesEnabled = true`) and then report the total number of emails sent and not sent to a Slack channel. It accomplishes this by defining a job that runs every Friday at 4pm, iterates through a list of users from a database, sends an email to those who have opted in, counts the number of emails sent and not sent, and finally posts these totals to a specified Slack channel."
+                }
+            ]
+        },
+        {
+            "api_name": "linear",
+            "examples": [
+                {
+                    "name": "linear-ticket-on-github-pr.txt",
+                    "description": "This code snippet is designed to automate the process of issue tracking and notifications across different platforms when a new pull request is opened in a GitHub repository. Specifically, it does the following:\n\n- It listens for new pull requests on a specified GitHub repository. When a new pull request is detected, it creates a corresponding issue in Linear (a project management tool) with details from the pull request.\n- After creating the issue in Linear, it sends a notification message to a specified Slack channel, informing team members about the new pull request and the created issue in Linear, including links to the pull request and the newly created issue for easy access and tracking."
+                },
+                {
+                    "name": "daily-linear-issues-slack-alert.txt",
+                    "description": "This code is designed to send a daily alert to a Slack channel about issues that are currently \"In Progress\" in Linear, a project management tool. It does this by defining a job that runs on weekdays at 9:00 AM UTC, fetching the first 20 \"In Progress\" issues from Linear based on specific filters (like team ID and assignee email), and then posting a message to a specified Slack channel with a summary and individual links to view each issue."
+                },
+                {
+                    "name": "automatically-comment-and-like-linear-issues.txt",
+                    "description": "This code snippet is designed to automatically respond to new issues created in Linear (a project management tool) by posting a comment and adding a reaction. It accomplishes this by defining a job that triggers when a new issue is created in Linear, then uses the Linear API to post a \"Thanks for opening this issue!\" comment and a \"+1\" emoji reaction to the newly created issue."
+                }
+            ]
+        },
+        {
+            "api_name": "supabase",
+            "examples": [
+                {
+                    "name": "openai-generate-blog-post.txt",
+                    "description": "This code snippet is designed to automatically generate titles for new blog posts using AI. It listens for new blog posts being added to a database, then uses OpenAI's GPT-3.5 model to suggest titles based on the content of the post. If a title is generated, it updates the blog post in the database with the new title."
+                },
+                {
+                    "name": "stripe-supabase-update.txt",
+                    "description": "This code snippet is designed to automatically update a specific table in a Supabase database whenever there is a change in a Stripe account's status. It accomplishes this by defining a job that listens for updates to a Stripe account (such as changes in payout or charge capabilities, or submission of account details) and then reflects those changes in the Supabase database by updating the relevant records with the new information."
+                },
+                {
+                    "name": "welcome-email-campaign.txt",
+                    "description": "This code snippet is designed to automatically send a series of welcome emails to new users of a service when they confirm their email address. It does this by monitoring updates to the 'users' table in a Supabase database, specifically looking for changes in the 'email_confirmed_at' field from null to a timestamp, indicating that the user has confirmed their email. Upon detecting such a change, it triggers a job that sends out three emails at different intervals (immediately, after 12 hours, and after 24 hours) to the confirmed email address, using the Resend service for email delivery."
+                },
+                {
+                    "name": "storage-to-ai.txt",
+                    "description": "This code snippet is designed to automatically generate variations of images uploaded to a specific bucket in a Supabase storage, using OpenAI's capabilities. It does this by listening for new image uploads to the \"uploads\" bucket, creating a temporary signed URL for the newly uploaded image, and then using OpenAI to create two variations of the image, which are returned as URLs."
+                }
+            ]
+        },
+        {
+            "api_name": "airtable",
+            "examples": [
+                {
+                    "name": "stripe-sub-update-airtable.txt",
+                    "description": "This code snippet is designed to automatically update an Airtable table whenever a new customer subscription is created in Stripe. It accomplishes this by defining a job that listens for new Stripe subscription events, extracts relevant subscription details (such as the subscription ID, billing interval, currency, and amount), and then creates a new record in a specified Airtable table with these details."
+                },
+                {
+                    "name": "new-airtable-record-from-typeform.txt",
+                    "description": "This code snippet is designed to automatically update an Airtable table whenever a new submission is received from a Typeform form. It accomplishes this by defining a job that triggers on new Typeform submissions, extracts the relevant information from the submission (such as name, email, and whether email contact is enabled), and then creates a new record in an Airtable table with this information."
+                },
+                {
+                    "name": "update-airtable-when-stripe-account-updated.txt",
+                    "description": "This code snippet is designed to automatically update an Airtable database when a new sale occurs in Stripe. It does this by listening for successful payment intents in Stripe, then either finds an existing customer record in Airtable or creates a new one, and finally logs the sale details in the Airtable's Sales table, linking it to the customer's record."
+                }
+            ]
+        },
+        {
+            "api_name": "github",
+            "examples": [
+                {
+                    "name": "github-issue-reminder.txt",
+                    "description": "This code snippet is designed to monitor GitHub issues and send a reminder message via Slack if an issue remains open for 24 hours. It achieves this by defining a job that triggers on the opening of a GitHub issue, waits for 24 hours (or a shorter duration in a development environment), checks if the issue is still open without updates, assigns the issue to the user who opened it, and then sends a notification message to a specified Slack channel with details about the issue and the assignment."
+                },
+                {
+                    "name": "linear-ticket-on-github-pr.txt",
+                    "description": "This code snippet is designed to automate the process of creating a Linear issue whenever a new pull request is opened in a specified GitHub repository. It accomplishes this by defining a job that triggers on GitHub pull request events, extracts relevant information from the pull request (like title, URL, author's URL, and description), creates a corresponding issue in Linear with that information, and then posts a message in a Slack channel summarizing the action, including links to the pull request and the newly created Linear issue."
+                },
+                {
+                    "name": "github-custom-label.txt",
+                    "description": "This code snippet is designed to automatically add a \"Bug\" label to any new issue opened in a specified GitHub repository. It accomplishes this by defining a job that triggers on the event of a new issue being opened, and then uses the GitHub integration to add the \"Bug\" label to the newly opened issue."
+                },
+                {
+                    "name": "slack-openai-summarize-github-commits.txt",
+                    "description": "This code is designed to automatically summarize the previous day's GitHub commits and post the summary to a Slack channel every day at 7 AM UTC. It accomplishes this by first fetching the commits from GitHub for a specified repository within the given time frame, then using OpenAI to generate a concise summary of these commits, and finally posting this summary to a designated Slack channel."
+                },
+                {
+                    "name": "github-star-to-slack.txt",
+                    "description": "This code snippet is designed to automatically send a notification to a specified Slack channel whenever a new star is added or removed from a specific GitHub repository. It accomplishes this by defining a job that triggers on the star event of a GitHub repository, then uses the Slack integration to post a message detailing the new star, including the star giver's URL and name, along with the updated star count of the repository."
+                }
+            ]
+        },
+        {
+            "api_name": "slack",
+            "examples": [
+                {
+                    "name": "github-issue-reminder.txt",
+                    "description": "This code snippet is designed to monitor GitHub issues and send a reminder message via Slack if an issue remains open for 24 hours. It achieves this by defining a job that triggers on the opening of a GitHub issue, waits for 24 hours (or a shorter duration in a development environment), checks if the issue is still open without updates, assigns the issue to the user who opened it, and then sends a notification message to a specified Slack channel with details about the issue and the assignment."
+                },
+                {
+                    "name": "slack-sendgrid-send-activity-summary.txt",
+                    "description": "This code is designed to send a weekly summary email to users who have opted in (indicated by `summariesEnabled = true`) and then report the total number of emails sent and not sent to a Slack channel. It accomplishes this by defining a job that runs every Friday at 4pm, iterates through a list of users from a database, sends an email to those who have opted in, counts the number of emails sent and not sent, and finally posts these totals to a specified Slack channel."
+                },
+                {
+                    "name": "slack-openai-summarize-github-commits.txt",
+                    "description": "This code is designed to automatically summarize the previous day's GitHub commits and post the summary to a Slack channel every day at 7 am UTC. It accomplishes this by first fetching the commits from GitHub for a specified repository within the given time frame (yesterday), then using OpenAI to generate a concise summary of these commits, and finally posting this summary to a designated Slack channel."
+                },
+                {
+                    "name": "daily-linear-issues-slack-alert.txt",
+                    "description": "This code snippet is designed to send a daily alert to a Slack channel about issues that are currently \"In Progress\" in Linear, a project management tool. It does this by defining a job that triggers every weekday at 9:00 AM UTC, queries Linear for the first 20 issues marked as \"In Progress\" for a specific team and assignee, and then formats and sends a message to a specified Slack channel with a summary and individual links to view each issue."
+                },
+                {
+                    "name": "github-star-to-slack.txt",
+                    "description": "This code snippet is designed to automatically send a notification to a specified Slack channel whenever a new star is added or removed from a specific GitHub repository. It accomplishes this by defining a job that triggers on the star event of a GitHub repository, then uses the Slack integration to post a message detailing the new star, including the star giver's URL and name, along with the updated star count of the repository."
+                }
+            ]
+        },
+        {
+            "api_name": "gmail",
+            "examples": [
+                {
+                    "name": "send-email-with-gmail.txt",
+                    "description": "This code snippet is designed to send an email using the Gmail API from a Google Workspace account by impersonating a user. It achieves this by setting up JWT authentication with the necessary permissions, initializing the Gmail API with this authentication, and then defining a job that constructs and sends an email message based on provided input (recipient, subject, and message body). The process involves creating a service account, enabling domain-wide delegation, and using the `googleapis` and `google-auth-library` packages for authentication and API access, along with task definition and execution through a custom client setup (presumably from \"@trigger.dev/sdk\")."
+                },
+                {
+                    "name": "gmail-http-endpoint.txt",
+                    "description": "This code snippet is designed to set up a system for receiving and processing Gmail push notifications using Google Cloud Pub/Sub and an HTTP endpoint. It involves several steps:\n\n1. **Setting up the environment**: It guides through creating a Google Cloud Project, enabling the Gmail API, creating a service account, and setting up a Pub/Sub topic and subscription to receive Gmail notifications. It also includes instructions for granting the necessary permissions for publishing messages to the topic.\n\n2. **Configuring OAuth for authentication**: It outlines how to set up OAuth 2.0 authentication in Postman for sending a watch request to the Gmail API, which is necessary for receiving push notifications about changes in the Gmail inbox.\n\n3. **Creating and verifying an HTTP endpoint**: The code defines an HTTP endpoint that verifies incoming requests using a bearer token to ensure they are from authorized sources. Upon successful verification, it processes the Gmail notification, decodes the base64-encoded message, and logs the message content.\n\nIn summary, the code is aimed at setting up and securing an HTTP endpoint to receive and log Gmail push notifications, ensuring that only authorized notifications are processed through OAuth 2.0 authentication and token verification."
+                }
+            ]
+        },
+        {
+            "api_name": "openai",
+            "examples": [
+                {
+                    "name": "openai-generate-image.txt",
+                    "description": "This code snippet is designed to automatically generate images based on a text prompt using OpenAI's image API. It does this by defining a job within a client application that, when triggered, calls the OpenAI API with a specific prompt (\"A hedgehog wearing a party hat\"), requesting two images of size 256x256 pixels, and then returns the URLs of these generated images."
+                },
+                {
+                    "name": "openai-generate-random-joke.txt",
+                    "description": "This code snippet is designed to create a job that uses OpenAI's GPT-3.5 Turbo model to generate a joke based on a given prompt. It does this by defining a job with the TriggerClient SDK, specifying the job's trigger and its execution logic, which involves sending a prompt to the OpenAI API and returning the generated joke."
+                },
+                {
+                    "name": "openai-generate-blog-post.txt",
+                    "description": "This code snippet is designed to automatically generate titles for new blog posts using AI. It listens for new blog posts being added to a database, then uses OpenAI's GPT-3.5 model to suggest titles based on the content of the post. If a title is generated, it updates the blog post in the database with the new title."
+                },
+                {
+                    "name": "storage-to-ai.txt",
+                    "description": "This code snippet is designed to automatically process new images uploaded to a specific storage bucket in Supabase, a cloud database service, by creating variations of these images using OpenAI's image processing capabilities.\n\nIt achieves this by setting up a job that triggers whenever a new `.png` image is inserted into the \"uploads\" bucket in Supabase. It then uses OpenAI to generate two variations of the uploaded image, ensuring these variations are accessible via a signed URL for temporary access."
+                },
+                {
+                    "name": "slack-openai-summarize-github-commits.txt",
+                    "description": "This code is designed to automatically summarize GitHub commits from the previous day and post the summary to a Slack channel every morning at 7 AM UTC. It accomplishes this by first fetching the commits from GitHub for a specified repository and time frame, then using OpenAI to generate a concise summary of these commits, and finally posting this summary to a designated Slack channel."
+                }
+            ]
+        }
+    ]
+}
